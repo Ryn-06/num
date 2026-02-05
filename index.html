@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Reconocimiento de Dígitos</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    #salidaNumero {
+      font-size: 6rem;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    #zonaCanvas {
+      border: 1px solid #999;
+      width: max-content;
+      margin: auto;
+    }
+  </style>
+</head>
+
+<body>
+
+<main>
+  <div class="text-center py-3 border-bottom">
+    <h1 class="fw-bold">Reconocimiento de Números</h1>
+    <p class="lead">Dibuja un número del 0 al 9 para que la IA lo identifique</p>
+  </div>
+
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-md-4 offset-md-4 text-center">
+
+        <div id="zonaCanvas">
+          <small>Dibuja el número grande y centrado</small>
+          <canvas id="canvasPrincipal" width="200" height="200"></canvas>
+          <canvas id="canvas28" width="28" height="28" style="display:none"></canvas>
+        </div>
+
+        <div class="mt-3">
+          <button class="btn btn-secondary" onclick="limpiarCanvas()">Limpiar</button>
+          <button class="btn btn-success" onclick="analizar()">Analizar</button>
+        </div>
+
+        <div id="salidaNumero" class="mt-3"></div>
+
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+<script src="fabric.min.js"></script>
+<script src="drawing.js"></script>
+
+<script>
+  let modeloIA = null;
+
+  const canvasGrande = document.getElementById("canvasPrincipal");
+  const ctxGrande = canvasGrande.getContext("2d");
+
+  const canvasChico = document.getElementById("canvas28");
+  const ctxChico = canvasChico.getContext("2d");
+
+  function limpiarCanvas() {
+    ctxGrande.clearRect(0, 0, canvasGrande.width, canvasGrande.height);
+    drawingcanvas.clear();
+    document.getElementById("salidaNumero").innerHTML = "";
+  }
+
+  function analizar() {
+    reducir(canvasGrande, 28, 28, canvasChico);
+
+    const img = ctxChico.getImageData(0, 0, 28, 28);
+    let matriz = [];
+    let fila = [];
+
+    for (let i = 0; i < img.data.length; i += 4) {
+      let valor = img.data[i + 3] / 255;
+      fila.push([valor]);
+
+      if (fila.length === 28) {
+        matriz.push(fila);
+        fila = [];
+      }
+    }
+
+    const tensor = tf.tensor4d([matriz]);
+    const salida = modeloIA.predict(tensor).dataSync();
+
+    const numero = salida.indexOf(Math.max(...salida));
+    document.getElementById("salidaNumero").innerHTML = numero;
+  }
+
+  function reducir(origen, w, h, destino) {
+    destino.width = w;
+    destino.height = h;
+    const ctx = destino.getContext("2d");
+    ctx.drawImage(origen, 0, 0, w, h);
+  }
+
+  (async () => {
+    console.log("Cargando modelo...");
+    modeloIA = await tf.loadLayersModel("model.json");
+    console.log("Modelo cargado correctamente");
+  })();
+</script>
+
+</body>
+</html>
